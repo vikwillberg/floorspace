@@ -183,7 +183,8 @@ def track_clip(clip: str, Hs: np.ndarray, Ps: np.ndarray, overlay_boxes) -> "pd.
 # Player cut-out masks (so floor graphics can go *under* the players)
 # ----------------------------------------------------------------------------
 
-SEG_MODEL = "yolo11x-seg.pt"
+SEG_MODEL = "yolo11l-seg.pt"
+SEG_IMGSZ = 1280
 
 
 def player_masks(clip: str, Hs, Ps, force=False, log=print) -> np.ndarray:
@@ -200,7 +201,7 @@ def player_masks(clip: str, Hs, Ps, force=False, log=print) -> np.ndarray:
     masks = []
     t0 = time.time()
     for i, fr in iter_frames(clip):
-        r = model.predict(fr, imgsz=DET_IMGSZ, classes=[PERSON], conf=0.15, retina_masks=True,
+        r = model.predict(fr, imgsz=SEG_IMGSZ, classes=[PERSON], conf=0.15, retina_masks=True,
                           verbose=False)[0]
         h, w = fr.shape[:2]
         m = np.zeros((h, w), bool)

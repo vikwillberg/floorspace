@@ -83,7 +83,7 @@ def clean_plate(texture, valid, H, shape):
     return plate, pv > 0
 
 
-def detection_features(frame, box, plate=None, plate_valid=None, de_thr=16.0):
+def detection_features(frame, box, plate=None, plate_valid=None, de_thr=16.0, gfx=None):
     out = []
     for r in REGIONS.values():
         p = _region(frame, box, r)
@@ -100,6 +100,11 @@ def detection_features(frame, box, plate=None, plate_valid=None, de_thr=16.0):
             la = cv2.cvtColor(p, cv2.COLOR_BGR2LAB).astype(np.float32)
             lb = cv2.cvtColor(bp, cv2.COLOR_BGR2LAB).astype(np.float32)
             keep = ~(bv & (np.linalg.norm(la - lb, axis=2) < de_thr))
+        if gfx is not None:            # ignore broadcast graphics (scorebug) inside the box
+            x0, y0, x1, y1 = box
+            h, w = y1 - y0, x1 - x0
+            ys, xs = max(int(y0 + r[0] * h), 0), max(int(x0 + r[2] * w), 0)
+            keep = keep & ~gfx[ys:ys + p.shape[0], xs:xs + p.shape[1]]
         frac = keep.mean()
         if frac < 0.2:
             out.append(np.r_[np.full(7, np.nan), frac])
@@ -111,15 +116,19 @@ def detection_features(frame, box, plate=None, plate_valid=None, de_thr=16.0):
 FEATURE_NAMES = [f"{r}_{k}" for r in REGIONS for k in ("gold", "dark", "light", "red", "L", "a", "b", "fg")]
 
 
-def features_for_tracks(frames, tracks: pd.DataFrame, Hs=None, texture=None, every=1) -> pd.DataFrame:
+def features_for_tracks(frames, tracks: pd.DataFrame, Hs=None, texture=None, every=1,
+                        gfx_boxes=()) -> pd.DataFrame:
     rows = []
+    gfx = np.zeros(frames[0].shape[:2], bool)
+    for gx0, gy0, gx1, gy1 in gfx_boxes:
+        gfx[gy0:gy1, gx0:gx1] = True
     for t, g in tracks[tracks.frame % every == 0].groupby("frame"):
         fr = frames[t]
         plate = pv = None
         if texture is not None:
             plate, pv = clean_plate(texture[0], texture[1], Hs[t], fr.shape)
         for r in g.itertuples():
-            rows.append((r.track_id, t, *detection_features(fr, (r.x0, r.y0, r.x1, r.y1), plate, pv)))
+            rows.append((r.track_id, t, *detection_features(fr, (r.x0, r.y0, r.x1, r.y1), plate, pv, gfx=gfx)))
     return pd.DataFrame(rows, columns=["track_id", "frame", *FEATURE_NAMES])
 
 
@@ -210,7 +219,10 @@ def split_segments(tr: pd.DataFrame, min_len=4) -> pd.DataFrame:
     sid = 0
     pos = 0
     for tid, g in tr.groupby("track_id", sort=False):
-        sm = _rolling_majority(g.team_row.to_numpy())
+        # frames without usable colours (e.g. legs hidden by the scorebug) take the label of the
+        # nearest labelled frames of the same track
+        lab = pd.Series(g.team_row.to_numpy(), dtype=object).replace("UNK", np.nan).ffill().bfill()
+        sm = _rolling_majority(lab.fillna("UNK").to_numpy())
         start = 0
         for i in range(1, len(g) + 1):
             if i == len(g) or sm[i] != sm[start] or g.frame.iloc[i] - g.frame.iloc[i - 1] > 15:

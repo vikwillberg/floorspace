@@ -53,7 +53,11 @@ def stage_features(clip, force=False, log=print, frames=None):
     tex = teams.build_court_texture(frames, cam["H"], boxes)
     import cv2
     cv2.imwrite(str(wdir(clip) / "court_texture.jpg"), tex[0])
-    F = teams.features_for_tracks(frames, tr, cam["H"], tex)
+    gfx_boxes = load_meta(clip)["overlay_mask_boxes"][:1]
+    tr = tr.reset_index(drop=True)
+    _, vfull = foot_positions(tr, cam, gfx_boxes, return_v=True)
+    tr_ext = tr.assign(y1=np.maximum(tr.y1.to_numpy(), vfull))   # boxes cut off by the scorebug, extended
+    F = teams.features_for_tracks(frames, tr_ext, cam["H"], tex, gfx_boxes=gfx_boxes)
     F.to_csv(out, index=False)
     return F
 
@@ -74,6 +78,40 @@ def load_team_model(clip, log=print):
     return fit_team_model([clip], log=log)
 
 
+PERSON_HEIGHT_FT = 6.6   # head-top height used when the feet are hidden
+
+
+def foot_positions(tr: pd.DataFrame, cam, gfx_boxes, return_v=False):
+    """Court position of each box's feet (bottom-centre of the box).
+
+    When the bottom of a box is cut off by a broadcast graphic (the scorebug), the
+    feet are estimated from the top of the box instead: find the floor point
+    whose projected 6.6 ft person top lands on the box top.
+    """
+    xy = np.full((len(tr), 2), np.nan)
+    vfull = np.full(len(tr), np.nan)
+    for f, g in tr.groupby("frame"):
+        H, P = cam["H"][f], cam["P"][f]
+        u = ((g.x0 + g.x1) / 2).to_numpy()
+        vb = g.y1.to_numpy().astype(float)
+        vt = g.y0.to_numpy().astype(float)
+        cut = np.zeros(len(g), bool)
+        for gx0, gy0, gx1, gy1 in gfx_boxes:
+            cut |= (u > gx0 - 10) & (u < gx1 + 10) & (vb > gy0 - 14) & (vb < gy1)
+        for k in np.flatnonzero(cut):
+            v = vb[k]
+            for _ in range(6):
+                X = unproject(H, np.array([[u[k], v]]))[0]
+                top = P @ np.array([X[0], X[1], -PERSON_HEIGHT_FT, 1.0])
+                v_top = top[1] / top[2]
+                v = v + (vt[k] - v_top)
+            vb[k] = max(v, vb[k])
+        idx = tr.index.get_indexer(g.index)
+        xy[idx] = unproject(H, np.c_[u, vb])
+        vfull[idx] = vb
+    return (xy, vfull) if return_v else xy
+
+
 def stage_identities(clip, model=None, force=False, log=print):
     out = wdir(clip) / "ids.csv"
     if out.exists() and not force:
@@ -82,12 +120,9 @@ def stage_identities(clip, model=None, force=False, log=print):
     tr = stage_track(clip, log=log)
     F = teams.smooth_features(stage_features(clip, log=log))
     model = model or load_team_model(clip, log=log)
-    tr = tr.merge(F, on=["track_id", "frame"])
+    tr = tr.merge(F, on=["track_id", "frame"]).reset_index(drop=True)
     tr["team_row"] = teams.label_rows(tr, model)
-    xy = np.full((len(tr), 2), np.nan)
-    for f, g in tr.groupby("frame"):
-        feet = np.c_[(g.x0 + g.x1) / 2, g.y1]
-        xy[tr.index.get_indexer(g.index)] = unproject(cam["H"][f], feet)
+    xy = foot_positions(tr, cam, load_meta(clip)["overlay_mask_boxes"][:1])
     tr["cx"], tr["cy"] = xy[:, 0], xy[:, 1]
     seg = teams.split_segments(tr)
     ids = teams.resolve_identities(seg)
