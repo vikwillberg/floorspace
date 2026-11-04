@@ -253,7 +253,7 @@ Rerun from a stage with `--force-from camera|track|features|identities|smooth`.
 
 ---
 
-Built by **Viktor Berg**.
+Built by **[Viktor Berg](https://www.linkedin.com/in/vikberg)**. Questions or ideas? Reach out on [LinkedIn](https://www.linkedin.com/in/vikberg).
 
 Code, data and charts are MIT licensed (see [LICENSE](LICENSE)). The NBA broadcast footage in the videos
 belongs to its rights holders and is shown only as a short demonstration.
