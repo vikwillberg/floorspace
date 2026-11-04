@@ -74,6 +74,14 @@ All distances are on the court floor, in feet (court 94 × 50 ft).
 
 ![spacing over time](docs/spacing_over_time.png)
 
+### More clips
+
+| p07 · Lakers · widest spacing, make | p08 · Heat · spacing collapses, make |
+|---|---|
+| [![p07 overlay](docs/p07.gif)](outputs/p07_floorspace.mp4) | [![p08 overlay](docs/p08.gif)](outputs/p08_floorspace.mp4) |
+
+Click a preview for the full video. All ten are in [`outputs/`](outputs).
+
 Per-clip numbers are in [`data/clips_summary.csv`](data/clips_summary.csv).
 
 ## Tracking quality
