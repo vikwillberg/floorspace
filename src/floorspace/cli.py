@@ -65,7 +65,8 @@ def cmd_run(args):
 
 
 def cmd_run_all(args):
-    from . import pipeline
+    import pandas as pd
+    from . import export, pipeline, qa
     force = _forces(args.force_from)
     clips = _clip_names(None)
     for c in clips:
@@ -75,6 +76,19 @@ def cmd_run_all(args):
     force["identities"] = force["smooth"] = True
     for c in clips:
         _run_back(c, force, model)
+    # one colour scale for every clip, from the data of all clips
+    pipeline.fit_thresholds(clips)
+    tr, sp, summ = export.export_all(clips)
+    export.charts(sp, summ)
+    rep = pd.DataFrame([qa.counts_report(c) for c in clips]).merge(
+        summ[["clip", "window_frames", "frames_all5", "share_all5_tracked"]], on="clip")
+    rep.to_csv(config.DATA_DIR / "qa_report.csv", index=False)
+    print(rep.to_string(index=False))
+    if not args.no_render:
+        for c in clips:
+            print(pipeline.stage_render(c))
+            qa.court_check_video(c)
+        pipeline.make_gif(config.OUT_DIR / f"{args.hero}_floorspace.mp4", config.DOCS_DIR / "hero.gif")
 
 
 def cmd_qa(args):
@@ -111,6 +125,9 @@ def main(argv=None):
         if name == "run":
             p.add_argument("clip")
         p.add_argument("--force-from", choices=["camera", "track", "features", "identities", "smooth"])
+        if name == "run-all":
+            p.add_argument("--no-render", action="store_true", help="skip the overlay videos")
+            p.add_argument("--hero", default="p01", help="clip used for docs/hero.gif")
         p.set_defaults(func=fn)
     p = sub.add_parser("qa", help="court-check video + sampled QA frames + count report")
     p.add_argument("clip", nargs="?")
