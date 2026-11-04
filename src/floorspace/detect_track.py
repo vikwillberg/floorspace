@@ -177,3 +177,41 @@ def track_clip(clip: str, Hs: np.ndarray, Ps: np.ndarray, overlay_boxes) -> "pd.
         for x0, y0, x1, y1, tid, sc, _c, idx in out:
             rows.append((t, int(tid), x0, y0, x1, y1, sc, int(idx)))
     return pd.DataFrame(rows, columns=["frame", "track_id", "x0", "y0", "x1", "y1", "score", "det_idx"])
+
+
+# ----------------------------------------------------------------------------
+# Player cut-out masks (so floor graphics can go *under* the players)
+# ----------------------------------------------------------------------------
+
+SEG_MODEL = "yolo11x-seg.pt"
+
+
+def player_masks(clip: str, Hs, Ps, force=False, log=print) -> np.ndarray:
+    """Per-frame union mask of people standing on the court (players + referees).
+
+    Stored bit-packed in work/<clip>/player_masks.npz at full resolution.
+    """
+    out = config.WORK_DIR / clip / "player_masks.npz"
+    if out.exists() and not force:
+        z = np.load(out)
+        return np.unpackbits(z["bits"], axis=-1, count=int(z["w"])).astype(bool)
+    from ultralytics import YOLO
+    model = YOLO(str(config.WEIGHTS_DIR / SEG_MODEL))
+    masks = []
+    t0 = time.time()
+    for i, fr in iter_frames(clip):
+        r = model.predict(fr, imgsz=DET_IMGSZ, classes=[PERSON], conf=0.15, retina_masks=True,
+                          verbose=False)[0]
+        h, w = fr.shape[:2]
+        m = np.zeros((h, w), bool)
+        if r.masks is not None and len(r.boxes):
+            keep, _ = court_filter(r.boxes.xyxy.numpy(), Hs[i], Ps[i])
+            md = r.masks.data.numpy() > 0.5
+            for k in np.flatnonzero(keep):
+                m |= md[k]
+        masks.append(m)
+        if i % 25 == 0:
+            log(f"  {clip} seg frame {i}  {(time.time() - t0) / (i + 1):.2f}s/frame")
+    masks = np.stack(masks)
+    np.savez_compressed(out, bits=np.packbits(masks, axis=-1), w=masks.shape[2])
+    return masks

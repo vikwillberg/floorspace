@@ -111,3 +111,66 @@ def stage_smooth(clip, force=False, log=print):
 def prepare_all(log=print):
     for raw in sorted(config.RAW_DIR.glob("*.mov")):
         prepare_clip(raw)
+
+
+# ----------------------------------------------------------------------------
+# metrics + render
+# ----------------------------------------------------------------------------
+
+THRESH_JSON = config.DATA_DIR / "spacing_thresholds.json"
+
+
+def stage_metrics(clip, log=print):
+    from . import metrics
+    info = clip_info(clip)
+    sm = stage_smooth(clip, log=log)
+    n = detect_track.n_frames(clip)
+    sp = metrics.per_frame(clip, sm, info, n)
+    sp.to_csv(wdir(clip) / "spacing.csv", index=False)
+    return sp
+
+
+def fit_thresholds(clips, log=print):
+    """Colour-scale ends from the data: 10th / 90th percentile of in-window hull area over `clips`."""
+    vals = []
+    for c in clips:
+        sp = stage_metrics(c, log=log)
+        vals.append(sp[sp.in_window & sp.all5_tracked].hull_area_sqft)
+    v = pd.concat(vals)
+    th = {"cramped_sqft": round(float(v.quantile(0.10)), 0), "spread_sqft": round(float(v.quantile(0.90)), 0),
+          "rule": "10th / 90th percentile of per-frame hull area (in-window, all 5 tracked)",
+          "clips": list(clips), "n_frames": int(len(v))}
+    config.DATA_DIR.mkdir(parents=True, exist_ok=True)
+    THRESH_JSON.write_text(json.dumps(th, indent=2))
+    log(f"  colour scale: red at {th['cramped_sqft']:.0f} sq ft, green at {th['spread_sqft']:.0f} sq ft "
+        f"({th['n_frames']} frames, {len(clips)} clip(s))")
+    return th
+
+
+def stage_render(clip, log=print, preview=None):
+    from . import overlay
+    info = clip_info(clip)
+    cam = court.map_clip(clip, log=log)
+    sm = stage_smooth(clip, log=log)
+    sp = stage_metrics(clip, log=log)
+    th = json.loads(THRESH_JSON.read_text()) if THRESH_JSON.exists() else fit_thresholds([clip], log=log)
+    masks = detect_track.player_masks(clip, cam["H"], cam["P"], log=log)
+    ids = stage_identities(clip, log=log)
+    n = len(cam["H"])
+    overlay.set_person_boxes([ids[ids.frame == t][["x0", "y0", "x1", "y1"]].to_numpy() for t in range(n)])
+    config.OUT_DIR.mkdir(parents=True, exist_ok=True)
+    out = config.OUT_DIR / f"{clip}_floorspace.mp4" if preview is None else wdir(clip) / "preview"
+    overlay.render_clip(clip, info, cam, sm, sp, masks, th["cramped_sqft"], th["spread_sqft"], out,
+                        log=log, preview=preview)
+    return out
+
+
+def make_gif(mp4, gif, width=960, fps=15, start=0.0, dur=8.2):
+    """Looping, palette-optimised README GIF."""
+    import subprocess
+    vf = f"fps={fps},scale={width}:-2:flags=lanczos"
+    subprocess.run(["ffmpeg", "-nostdin", "-v", "error", "-y", "-ss", str(start), "-t", str(dur), "-i", str(mp4),
+                    "-vf", f"{vf},split[a][b];[a]palettegen=max_colors=192:stats_mode=diff[p];"
+                           f"[b][p]paletteuse=dither=sierra2_4a:diff_mode=rectangle",
+                    "-loop", "0", str(gif)], check=True)
+    return gif

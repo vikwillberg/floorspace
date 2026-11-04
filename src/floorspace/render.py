@@ -100,7 +100,7 @@ class Minimap:
         W, H = self.w * SS, self.h * SS
         im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         d = ImageDraw.Draw(im)
-        d.rounded_rectangle([0, 0, W - 1, H - 1], radius=16 * SS, fill=PANEL + (184,))
+        d.rounded_rectangle([0, 0, W - 1, H - 1], radius=16 * SS, fill=PANEL + (165,))
         lw = max(1, int(round(1.6 * SS)))
         for pts in _half_lines(self.side):
             uv = self.to_px(pts) * SS

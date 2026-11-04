@@ -86,6 +86,16 @@ def cmd_qa(args):
         print(json.dumps(qa.counts_report(c)))
 
 
+def cmd_render(args):
+    from . import pipeline
+    for c in _clip_names(args.clip):
+        out = pipeline.stage_render(c)
+        print(out)
+        if args.gif:
+            config.DOCS_DIR.mkdir(parents=True, exist_ok=True)
+            print(pipeline.make_gif(out, config.DOCS_DIR / f"{c}_floorspace.gif"))
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="floorspace")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -106,6 +116,10 @@ def main(argv=None):
     p.add_argument("clip", nargs="?")
     p.add_argument("-n", type=int, default=10)
     p.set_defaults(func=cmd_qa)
+    p = sub.add_parser("render", help="render the overlay video (outputs/<clip>_floorspace.mp4)")
+    p.add_argument("clip", nargs="?")
+    p.add_argument("--gif", action="store_true", help="also write docs/<clip>_floorspace.gif")
+    p.set_defaults(func=cmd_render)
     args = ap.parse_args(argv)
     args.func(args)
 
