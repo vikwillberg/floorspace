@@ -135,7 +135,8 @@ class Minimap:
 # QA / debug views
 # ----------------------------------------------------------------------------
 
-def draw_court_lines(frame, H, color_white=(0, 255, 255), color_purple=(255, 0, 255), width=2):
+def draw_court_lines(frame, H, color_white=(255, 255, 0), color_purple=(255, 0, 255), width=2):
+    """Debug overlay (BGR): cyan = white court lines, magenta = 3-point line."""
     out = frame.copy()
     for kind, name, pts in court_lines():
         uv = project(H, pts)
@@ -160,8 +161,8 @@ def qa_frame(frame, H, rows, side, off_team, label=""):
         cv2.putText(im, f"{r['pid']}", (int(u) + 16, int(v) + 10), cv2.FONT_HERSHEY_SIMPLEX, 1.1,
                     (0, 0, 0), 2, cv2.LINE_AA)
     if label:
-        cv2.putText(im, label, (30, 70), cv2.FONT_HERSHEY_SIMPLEX, 2.0, (255, 255, 255), 6, cv2.LINE_AA)
-        cv2.putText(im, label, (30, 70), cv2.FONT_HERSHEY_SIMPLEX, 2.0, (0, 0, 0), 2, cv2.LINE_AA)
+        cv2.putText(im, label, (30, 70), cv2.FONT_HERSHEY_SIMPLEX, 1.8, (0, 0, 0), 8, cv2.LINE_AA)
+        cv2.putText(im, label, (30, 70), cv2.FONT_HERSHEY_SIMPLEX, 1.8, (255, 255, 255), 3, cv2.LINE_AA)
     mm = Minimap(side, 620)
     off = [(r["x_ft"], r["y_ft"], r.get("alpha", 1.0)) for r in rows if r["team"] == off_team]
     de = [(r["x_ft"], r["y_ft"], r.get("alpha", 1.0)) for r in rows if r["team"] != off_team]
