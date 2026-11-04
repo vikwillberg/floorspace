@@ -1,0 +1,18 @@
+# derived video (reproducible: python -m floorspace prepare)
+clips/mp4/
+# model weights (downloaded from github.com/ultralytics/assets)
+weights/
+*.pt
+# big intermediate files (detections, camera tracks, QA frames)
+work/
+outputs/debug/*_raw.mp4
+# python
+.venv/
+__pycache__/
+*.egg-info/
+*.pyc
+.ipynb_checkpoints/
+# os / editors
+.DS_Store
+.vscode/
+.idea/

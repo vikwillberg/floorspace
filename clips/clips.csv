@@ -1,0 +1,11 @@
+clip,offense,defense,ends_in_shot,result,notes,period,clock_start,clock_end,window_start_s,shot_t_s,window_end_s
+p01,MIA,LAL,true,make,MIA half-court set at the right basket; MIA scores at the rim from the right baseline (MIA 4->6 is shown at the start of p02). p02 continues this recording (~0.2 s overlap).,1,9:16,9:10,0.0,4.6,5.0
+p02,LAL,MIA,true,make,"Starts with the p01 make, then LAL inbound + full-court transition (camera pans). Half-court set from ~3.7 s; LAL jumper from the left elbow is good (LAL 8->10).",1,9:10,9:00,3.7,6.65,8.1
+p03,MIA,LAL,true,make,"MIA drive to the right rim, make (MIA 6->8). After the make LAL inbounds and the camera follows (outside the analysis window).",1,8:30,8:24,0.0,3.3,3.8
+p04,LAL,MIA,true,make,LAL finish at the left rim by #14 (LAL 10->12: the scorebug updates after the clip; p03 at 8:30 shows 12).,1,8:42,8:35,0.0,5.1,5.6
+p05,LAL,MIA,true,make,"LAL swing to the right wing, catch-and-shoot 3 is good (LAL 72->75).",2,1:03,0:55.7,0.0,6.0,7.2
+p06,LAL,MIA,false,turnover,LAL half-court set until a MIA steal at ~5.6 s; the MIA breakaway that follows is not part of this possession. 'Scoring run' graphic next to the scorebug for the first ~6 s.,3,7:31,7:22,0.0,,5.5
+p07,LAL,MIA,true,make,LAL bring it up; #14 dunk at the right rim. Ball through the net + shot clock reset right before the clip ends (scorebug not updated yet).,3,5:30,5:24,0.0,5.45,5.9
+p08,MIA,LAL,true,make,"MIA half-court set at the left basket; baseline cut and finish, ball drops through at ~6.0 s + shot clock reset (scorebug not updated yet).",3,3:32,3:26,0.0,4.85,6.0
+p09,LAL,MIA,true,miss,"LAL set at the left basket; 3 from the far wing/corner misses; MIA defensive rebound (score unchanged, shot clock 24).",2,9:11,9:04,0.0,4.2,6.4
+p10,LAL,MIA,true,miss,"LAL set at the left basket; #11 corner 3 from the near corner misses; MIA rebound (score unchanged, shot clock 24). 'FG this qtr' graphic next to the scorebug in the first ~1 s.",2,8:39,8:32,0.0,4.85,6.4
