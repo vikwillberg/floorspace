@@ -1,9 +1,18 @@
 {
-  "cramped_sqft": 421.0,
-  "spread_sqft": 632.0,
+  "cramped_sqft": 426.0,
+  "spread_sqft": 1111.0,
   "rule": "10th / 90th percentile of per-frame hull area (in-window, all 5 tracked)",
   "clips": [
-    "p01"
+    "p01",
+    "p02",
+    "p03",
+    "p04",
+    "p05",
+    "p06",
+    "p07",
+    "p08",
+    "p09",
+    "p10"
   ],
-  "n_frames": 123
+  "n_frames": 1237
 }

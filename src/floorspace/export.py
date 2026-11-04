@@ -76,7 +76,10 @@ def chart_by_clip(summ: pd.DataFrame, path):
         col = TEAM_CHART[r.offense]
         ax.barh(yi, r.hull_area_sqft_avg, height=0.58, color=col, edgecolor=SURFACE, linewidth=2)
         lab = f"{r.hull_area_sqft_avg:,.0f}"
-        ax.text(r.hull_area_sqft_avg + 12, yi, lab, va="center", ha="left", fontsize=10, color=TEXT,
+        dot = r.hull_area_sqft_last1s
+        # label sits right of whichever ends later, the bar or the last-second dot
+        lx = max(r.hull_area_sqft_avg, dot + 14 if dot == dot and dot > r.hull_area_sqft_avg - 40 else 0)
+        ax.text(lx + 14, yi, lab, va="center", ha="left", fontsize=10, color=TEXT,
                 fontweight=600)
         if r.hull_area_sqft_last1s == r.hull_area_sqft_last1s:
             ax.plot(r.hull_area_sqft_last1s, yi, "o", ms=8, mfc=SURFACE, mec=TEXT, mew=1.6, zorder=5)
@@ -106,7 +109,7 @@ def chart_over_time(sp: pd.DataFrame, summ: pd.DataFrame, path):
     """Small multiples: spacing per frame in the analysis window, shot release marked."""
     import matplotlib.pyplot as plt
     _style()
-    clips = list(summ.sort_values(["offense", "clip"], ascending=[False, True]).clip)
+    clips = list(summ.sort_values(["offense", "clip"], ascending=[False, True])["clip"])
     n = len(clips)
     cols = 5
     rows = int(np.ceil(n / cols))
@@ -119,7 +122,7 @@ def chart_over_time(sp: pd.DataFrame, summ: pd.DataFrame, path):
             continue
         c = clips[k]
         info = clip_info(c)
-        g = sp[(sp.clip == c) & sp.in_window]
+        g = sp[(sp["clip"] == c) & sp.in_window]
         col = TEAM_CHART[info["offense"]]
         ax.plot(g.t_sec, g.hull_area_sqft, color=col, lw=2, solid_capstyle="round")
         if str(info["ends_in_shot"]).lower() == "true":
