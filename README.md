@@ -1,5 +1,10 @@
 # floorspace
 
+[![tests](https://github.com/vikwillberg/floorspace/actions/workflows/tests.yml/badge.svg)](https://github.com/vikwillberg/floorspace/actions/workflows/tests.yml)
+![Python 3.13](https://img.shields.io/badge/python-3.13-3776AB?logo=python&logoColor=white)
+![CPU only](https://img.shields.io/badge/runs%20on-CPU-555)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 ![floorspace overlay on a Heat possession](docs/hero.gif)
 
 **How well is an NBA offense spaced, frame by frame, from nothing but the TV broadcast?**
@@ -119,6 +124,71 @@ n_offense_tracked, all5_tracked, hull_area_sqft, mean_dist_ft, n_outside_3`
 
 **`clips/clips.csv`**: hand-entered clip notes: offense, defense, result, game clock, analysis window and shot time.
 
+### Query it with SQL
+
+The CSVs load straight into any database (or Power BI / Excel). A few questions answered from the data,
+written for SQLite / Postgres:
+
+**Spacing by team** (frame-weighted, so slightly different from the per-clip averages above)
+
+```sql
+SELECT offense,
+       COUNT(DISTINCT clip)            AS possessions,
+       ROUND(AVG(hull_area_sqft), 0)   AS avg_spacing_sqft,
+       ROUND(AVG(mean_dist_ft), 1)     AS avg_teammate_dist_ft,
+       ROUND(AVG(n_outside_3), 1)      AS avg_outside_3
+FROM spacing
+WHERE in_window = 1 AND all5_tracked = 1
+GROUP BY offense;
+```
+
+| offense | possessions | avg_spacing_sqft | avg_teammate_dist_ft | avg_outside_3 |
+|---|---:|---:|---:|---:|
+| LAL | 7 | 823 | 30.3 | 3.4 |
+| MIA | 3 | 576 | 26.3 | 2.7 |
+
+**Spacing in the last second before makes vs misses**
+
+```sql
+SELECT c.result,
+       COUNT(DISTINCT s.clip)            AS shots,
+       ROUND(AVG(s.hull_area_sqft), 0)   AS spacing_last_1s_sqft
+FROM spacing s
+JOIN clips c ON c.clip = s.clip          -- clips/clips.csv
+WHERE c.ends_in_shot = 1
+  AND s.all5_tracked = 1
+  AND s.t_sec BETWEEN c.shot_t_s - 1.0 AND c.shot_t_s
+GROUP BY c.result;
+```
+
+| result | shots | spacing_last_1s_sqft |
+|---|---:|---:|
+| make | 7 | 698 |
+| miss | 2 | 763 |
+
+**The most cramped moment of each possession** (window function)
+
+```sql
+SELECT clip, offense, t_sec, hull_area_sqft
+FROM (
+  SELECT clip, offense, t_sec, hull_area_sqft,
+         ROW_NUMBER() OVER (PARTITION BY clip ORDER BY hull_area_sqft) AS rn
+  FROM spacing
+  WHERE in_window = 1 AND all5_tracked = 1
+) t
+WHERE rn = 1
+ORDER BY hull_area_sqft
+LIMIT 3;
+```
+
+| clip | offense | t_sec | hull_area_sqft |
+|---|---|---:|---:|
+| p08 | MIA | 3.90 | 198 |
+| p06 | LAL | 4.17 | 215 |
+| p09 | LAL | 0.10 | 311 |
+
+With two misses in the sample, the make / miss split says nothing yet; it shows the kind of question the data answers.
+
 ## Outputs
 
 - `outputs/pNN_floorspace.mp4`: overlay video for every clip (H.264, broadcast resolution)
@@ -141,6 +211,9 @@ pip install -r requirements.txt && pip install -e .
 Model weights (`yolo11x.pt`, `yolo11l-seg.pt`) are downloaded into `weights/` from the
 [Ultralytics GitHub releases](https://github.com/ultralytics/assets/releases).
 
+The original broadcast recordings aren't published. Put your own clips in `clips/raw/` (e.g. `p01.mov`)
+and describe each one in `clips/clips.csv`.
+
 ```bash
 python -m floorspace prepare                 # clips/raw/*.mov -> clips/mp4/*.mp4
 ```
@@ -155,6 +228,10 @@ python -m floorspace run-all                 # every clip in clips/clips.csv + d
 
 ```bash
 python -m floorspace qa p01 -n 12            # court-check video + sampled QA frames with minimap
+```
+
+```bash
+pip install pytest && PYTHONPATH=src pytest -q   # metric unit tests
 ```
 
 Rerun from a stage with `--force-from camera|track|features|identities|smooth`.
@@ -177,3 +254,6 @@ Rerun from a stage with `--force-from camera|track|features|identities|smooth`.
 ---
 
 Built by **Viktor Berg**.
+
+Code, data and charts are MIT licensed (see [LICENSE](LICENSE)). The NBA broadcast footage in the videos
+belongs to its rights holders and is shown only as a short demonstration.

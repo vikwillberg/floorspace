@@ -16,3 +16,6 @@ __pycache__/
 .DS_Store
 .vscode/
 .idea/
+# raw broadcast recordings (not published; see clips/raw/README.md)
+clips/raw/*.mov
+clips/raw/*.mp4
