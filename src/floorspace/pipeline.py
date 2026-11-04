@@ -165,12 +165,13 @@ def stage_render(clip, log=print, preview=None):
     return out
 
 
-def make_gif(mp4, gif, width=960, fps=15, start=0.0, dur=8.2):
+def make_gif(mp4, gif, width=720, fps=12, start=0.0, dur=8.2):
     """Looping, palette-optimised README GIF."""
     import subprocess
-    vf = f"fps={fps},scale={width}:-2:flags=lanczos"
+    # light denoise + no dithering keeps the noisy crowd from blowing up the file (target <= 10 MB)
+    vf = f"fps={fps},scale={width}:-2:flags=lanczos,hqdn3d=5:5:8:8"
     subprocess.run(["ffmpeg", "-nostdin", "-v", "error", "-y", "-ss", str(start), "-t", str(dur), "-i", str(mp4),
-                    "-vf", f"{vf},split[a][b];[a]palettegen=max_colors=192:stats_mode=diff[p];"
-                           f"[b][p]paletteuse=dither=sierra2_4a:diff_mode=rectangle",
+                    "-vf", f"{vf},split[a][b];[a]palettegen=max_colors=160:stats_mode=diff[p];"
+                           f"[b][p]paletteuse=dither=none:diff_mode=rectangle",
                     "-loop", "0", str(gif)], check=True)
     return gif

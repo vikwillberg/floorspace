@@ -24,6 +24,7 @@ from .render import (CRAMPED, DEF_GRAY, PANEL, SPREAD, TEAM_RGB, WHITE, Minimap,
 
 SS = 2                    # supersampling for floor graphics
 END_CARD_S = 1.5
+DISPLAY_BACK_FT = 0.5
 TEXT_MUTED = (168, 176, 189)
 TEXT_DIM = (120, 128, 140)
 
@@ -444,7 +445,9 @@ def render_clip(clip, info, cam, sm, sp, masks, lo, hi, out_path, log=print, max
             continue
         Hm = cam["H"][t]
         rows = sm[(sm.frame == t) & (sm.alpha > 0.02)]
-        players = [dict(x_ft=r.x_ft, y_ft=r.y_ft, team=r.team, alpha=float(r.alpha), pid=int(r.pid),
+        # display only: the box bottom is the foot nearest the camera, so nudge the ring
+        # centre DISPLAY_BACK_FT away from the camera to sit under the player (metrics unchanged)
+        players = [dict(x_ft=r.x_ft, y_ft=r.y_ft - DISPLAY_BACK_FT, team=r.team, alpha=float(r.alpha), pid=int(r.pid),
                         is_off=(r.team == off)) for r in rows.itertuples()]
         all5 = bool(row.all5_tracked)
         hull_fade = min(1.0, hull_fade + 0.15) if all5 else max(0.35, hull_fade - 0.08)
